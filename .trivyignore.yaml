@@ -1,0 +1,4 @@
+misconfigurations:
+  # This check is supposed to be deprecated.
+  # apt-get upgrade is completely fine.
+  - id: AVD-DS-0024
