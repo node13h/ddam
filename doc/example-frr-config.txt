@@ -1,0 +1,27 @@
+ip route 192.0.2.1/32 Null0
+
+router bgp 64513
+ bgp router-id 192.168.64.3
+ bgp log-neighbor-changes
+ neighbor 192.168.64.1 remote-as 64512
+ neighbor 192.168.64.1 description exa
+ neighbor 192.168.64.1 disable-connected-check
+ !
+ address-family ipv4 unicast
+  neighbor 192.168.64.1 route-map BLACKHOLE-INBOUND in
+  neighbor 192.168.64.1 route-map NO-OUTBOUND out
+ exit-address-family
+exit
+!
+ip prefix-list ALL seq 5 permit any
+!
+bgp community-list standard BLACKHOLE seq 5 permit 64513:666
+!
+route-map BLACKHOLE-INBOUND permit 10
+ match community BLACKHOLE
+ set ip next-hop 192.0.2.1
+exit
+!
+route-map NO-OUTBOUND deny 10
+ match ip address prefix-list ALL
+exit

@@ -1,0 +1,17 @@
+variables:
+  RUFF_CI_IMAGE: docker.io/pipelinecomponents/ruff:0.25.0@sha256:191042ebc287fb783ad334f4b8b621d08139ed32021987852f323ddcd9137558
+
+stages:
+  - task
+
+reformat:
+  stage: task
+  image: $RUFF_CI_IMAGE
+  script:
+    - ruff check --select I --fix
+    - ruff format
+  artifacts:
+    paths:
+      - 'ddam/**/*.py'
+      - 'tests/**/*.py'
+    expire_in: 1 day
