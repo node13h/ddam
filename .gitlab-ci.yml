@@ -7,22 +7,29 @@ stages:
 
 variables:
   PUBLISH_IMAGE: 'docker.io/alikov/ddam'
-  PYTHON_CI_IMAGE: docker.io/alikov/ci-python:3.13
-  BUILDAH_CI_IMAGE: quay.io/buildah/stable:v1.39.2
-  TRIVY_CI_IMAGE: docker.io/aquasec/trivy:0.61.0
+  PACKAGE_NAME: ddam
+  DOCKER_HUB_REGISTRY: docker.io
+  QUAY_IO_REGISTRY: quay.io
+  PYTHON_CI_IMAGE: alikov/ci-python:python3.13
+  CI_VERSION_TOOLS_IMAGE: alikov/ci-version-tools:0.2.0
+  BUILDAH_CI_IMAGE: buildah/stable:v1.39.3
+  TRIVY_CI_IMAGE: aquasec/trivy:0.61.0
   TRIVY_NO_PROGRESS: "true"
   # https://aquasecurity.github.io/trivy/v0.59/docs/configuration/filtering/#trivyignoreyaml
   TRIVY_IGNOREFILE: ./.trivyignore.yaml
-  PYTHON_BASE_IMAGE: docker.io/python:3.13.2-slim-bookworm
+  PYTHON_BASE_IMAGE: python:3.13.3-slim-bookworm
 
 workflow:
   rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_PIPELINE_SOURCE == "web"
+    # https://docs.gitlab.com/ci/pipelines/downstream_pipelines/#dynamic-child-pipelines
+    - if: $CI_PIPELINE_SOURCE == "parent_pipeline"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
     - if: $CI_COMMIT_BRANCH
-    - if: $CI_COMMIT_TAG
-
 
 .with-local-pip-repo:
   cache:
@@ -52,8 +59,24 @@ workflow:
       paths:
         - $TRIVY_CACHE_DIR
 
+version:
+  image: "${DOCKER_HUB_REGISTRY}/${CI_VERSION_TOOLS_IMAGE}"
+  stage: .pre
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - project-version
+        --version-source poetry
+        --git-version-tag-prefix v
+        ${CI_COMMIT_TAG:+--git-tag "$CI_COMMIT_TAG"}
+        env-vars | tee version.env
+  artifacts:
+    reports:
+      dotenv:
+        - version.env
+
 requirements:
-  image: $PYTHON_CI_IMAGE
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   extends:
     - .with-local-pip-repo
   stage: .pre
@@ -69,29 +92,38 @@ iac-check:
   extends: .with-trivy-cache
   stage: lint
   image:
-    name: $TRIVY_CI_IMAGE
+    name: "${DOCKER_HUB_REGISTRY}/${TRIVY_CI_IMAGE}"
     entrypoint: [""]
   script:
     - trivy config --exit-code 3 .
   needs: []
 
 format-check:
-  image: $PYTHON_CI_IMAGE
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   stage: lint
   script:
     - ruff format --check
   needs: []
 
 check:
-  image: $PYTHON_CI_IMAGE
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   stage: lint
   script:
     - ruff check
   needs: []
 
+dependency-check:
+  extends: .with-trivy-cache
+  stage: lint
+  image:
+    name: "${DOCKER_HUB_REGISTRY}/${TRIVY_CI_IMAGE}"
+    entrypoint: [""]
+  script:
+    - trivy fs --exit-code 3 ./requirements-dev.txt
+
 typecheck:
   extends: .with-local-pip-repo
-  image: $PYTHON_CI_IMAGE
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   stage: lint
   script:
     - python3 -m venv ci/venv
@@ -102,7 +134,7 @@ typecheck:
 
 test:
   extends: .with-local-pip-repo
-  image: $PYTHON_CI_IMAGE
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   stage: test
   script:
     - python3 -m venv ci/venv
@@ -119,23 +151,26 @@ test:
         path: coverage.xml
 
 build:
-  image: $PYTHON_CI_IMAGE
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   stage: build
   script:
     - poetry build
     - PACKAGE_VERSION=$(poetry version --short)
-    - printf 'PACKAGE_VERSION=%s\n' "$PACKAGE_VERSION" >version.env
+    - printf 'PACKAGE_VERSION=%s\n' "$PACKAGE_VERSION" >package-version.env
   artifacts:
     paths:
       - dist
     reports:
       dotenv:
-        - version.env
+        - package-version.env
 
 .build-image:
   extends: .with-registry-login
   stage: build
-  image: $BUILDAH_CI_IMAGE
+  image: "${QUAY_IO_REGISTRY}/${BUILDAH_CI_IMAGE}"
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE
+    TAG: $VERSION_WITHOUT_BUILD_METADATA
   script:
     - - buildah () { sudo -u build --preserve-env=SOURCE_DATE_EPOCH,REGISTRY_AUTH_FILE buildah --storage-driver=vfs ${CONTAINERS_REGISTRIES_CONF:+--registries-conf "$CONTAINERS_REGISTRIES_CONF"} "$@"; }
     - SOURCE_DATE_EPOCH=$(date +%s)
@@ -145,16 +180,18 @@ build:
               --isolation chroot
               --format oci
               --timestamp "$SOURCE_DATE_EPOCH"
-              --build-arg PACKAGE_TARBALL="ddam-${PACKAGE_VERSION}.tar.gz"
-              --build-arg BASE_IMAGE="$PYTHON_BASE_IMAGE"
+              --build-arg PACKAGE_TARBALL="${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz"
+              --build-arg BASE_IMAGE="${DOCKER_HUB_REGISTRY}/${PYTHON_BASE_IMAGE}"
               --build-arg SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH"
               --build-arg GIT_COMMIT_SHA="$CI_COMMIT_SHA"
               --arch "$ARCH"
-              -t "${CI_REGISTRY_IMAGE}:${PACKAGE_VERSION}-${ARCH}"
+              -t "${IMAGE}:${TAG}-${ARCH}"
               .
-    - buildah inspect "${CI_REGISTRY_IMAGE}:${PACKAGE_VERSION}-${ARCH}"
-    - buildah push "${CI_REGISTRY_IMAGE}:${PACKAGE_VERSION}-${ARCH}"
+    - buildah inspect "${IMAGE}:${TAG}-${ARCH}"
+    - buildah push "${IMAGE}:${TAG}-${ARCH}"
   needs:
+    - version
+    - iac-check
     - build
 
 build-image-amd64:
@@ -175,21 +212,23 @@ build-image-arm64:
   extends: .with-trivy-cache
   stage: scan
   image:
-    name: $TRIVY_CI_IMAGE
+    name: "${DOCKER_HUB_REGISTRY}/${TRIVY_CI_IMAGE}"
     entrypoint: [""]
   variables:
     TRIVY_USERNAME: $CI_REGISTRY_USER
     TRIVY_PASSWORD: $CI_REGISTRY_PASSWORD
+    IMAGE: $CI_REGISTRY_IMAGE
+    TAG: $VERSION_WITHOUT_BUILD_METADATA
   script:
-    - trivy image "${CI_REGISTRY_IMAGE}:${PACKAGE_VERSION}-${ARCH}"
-    - trivy image --severity HIGH,CRITICAL --exit-code 3 --ignore-unfixed "${CI_REGISTRY_IMAGE}:${PACKAGE_VERSION}-${ARCH}"
+    - trivy image "${IMAGE}:${TAG}-${ARCH}"
+    - trivy image --severity HIGH,CRITICAL --exit-code 3 --ignore-unfixed "${IMAGE}:${TAG}-${ARCH}"
 
 scan-amd64:
   extends: .scan-image
   variables:
     ARCH: amd64
   needs:
-    - build
+    - version
     - build-image-amd64
 
 scan-arm64:
@@ -197,17 +236,18 @@ scan-arm64:
   variables:
     ARCH: arm64
   needs:
-    - build
+    - version
     - build-image-arm64
 
 publish:
-  image: $PYTHON_CI_IMAGE
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   stage: publish
   script:
     - poetry publish
   needs:
     - build
   rules:
+    # TODO: Skip for scheduled/triggered pipelines? Use a variable (SKIP_PYPI_PUBLISH) as a flag?
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
     - when: manual
       allow_failure: true
@@ -215,16 +255,23 @@ publish:
 publish-image:
   extends: .with-registry-login
   stage: publish
-  image: $BUILDAH_CI_IMAGE
+  image: "${QUAY_IO_REGISTRY}/${BUILDAH_CI_IMAGE}"
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE
+    TAG: $VERSION_WITHOUT_BUILD_METADATA
   script:
     - buildah () { sudo -u build --preserve-env=REGISTRY_AUTH_FILE buildah --storage-driver=vfs ${CONTAINERS_REGISTRIES_CONF:+--registries-conf "$CONTAINERS_REGISTRIES_CONF"} "$@"; }
-    - buildah manifest create "${PUBLISH_IMAGE}:${PACKAGE_VERSION}"
-    - buildah manifest add "${PUBLISH_IMAGE}:${PACKAGE_VERSION}" "${CI_REGISTRY_IMAGE}:${PACKAGE_VERSION}-amd64"
-    - buildah manifest add "${PUBLISH_IMAGE}:${PACKAGE_VERSION}" "${CI_REGISTRY_IMAGE}:${PACKAGE_VERSION}-arm64"
-    - buildah manifest push --all "${PUBLISH_IMAGE}:${PACKAGE_VERSION}" "docker://${PUBLISH_IMAGE}:${PACKAGE_VERSION}"
-    - printf 'Pushed %s\n' "${PUBLISH_IMAGE}:${PACKAGE_VERSION}"
+    - buildah manifest create "${PUBLISH_IMAGE}:${TAG}"
+    - buildah manifest add "${PUBLISH_IMAGE}:${TAG}" "${IMAGE}:${TAG}-amd64"
+    - buildah manifest add "${PUBLISH_IMAGE}:${TAG}" "${IMAGE}:${TAG}-arm64"
+    - buildah manifest push --all "${PUBLISH_IMAGE}:${TAG}" "docker://${PUBLISH_IMAGE}:${TAG}"
+    - printf 'Pushed %s\n' "${PUBLISH_IMAGE}:${TAG}"
+    - if [ -n "${VERSION_IS_LATEST_RELEASE:-}" ]; then
+        buildah manifest push "${PUBLISH_IMAGE}:${TAG}" "docker://${PUBLISH_IMAGE}:latest";
+        printf "Pushed %s\n" "${PUBLISH_IMAGE}:latest";
+      fi
   needs:
-    - build
+    - version
     - scan-amd64
     - scan-arm64
   rules:

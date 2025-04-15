@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "ddam"
-version = "1.0.0"
+version = "1.1.0.dev0"
 description = ""
 authors = ["Sergej Alikov <sergej@alikov.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.13"
 elasticsearch = "^8.17.2"
 requests = "^2.32.3"
 prometheus-client = "^0.21.1"
@@ -15,9 +15,9 @@ exabgp = "^4.2.25"
 
 
 [tool.poetry.group.dev.dependencies]
-coverage = "^7.7.1"
+coverage = "^7.8.0"
 pytest = "^8.3.5"
-types-requests = "^2.32.0.20250306"
+types-requests = "^2.32.0.20250328"
 
 [tool.poetry.scripts]
 ddam = 'ddam:main'
