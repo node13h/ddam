@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.2] - 2025-04-16
+
+### Changed
+
+- Only run pipelines for MRs on push.
+
 ## [1.1.1] - 2025-04-16
 
 ### Fixed
