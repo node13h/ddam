@@ -12,6 +12,7 @@ requirements-dev.txt
 /ci/pip-repo/
 /ci/venv/
 version.env
+package-version.env
 *.db
 
 cidr-blocks.json
