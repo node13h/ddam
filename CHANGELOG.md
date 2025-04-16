@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0] - 2025-04-16
+
+### Changed
+
+- Move packages into `src/`.
+- Enable stricter Ruff checks.
+
 ## [1.1.2] - 2025-04-16
 
 ### Changed
