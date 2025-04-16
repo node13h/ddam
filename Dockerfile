@@ -1,6 +1,4 @@
 ARG BASE_IMAGE
-
-#trivy:ignore:AVD-DS-0001
 FROM $BASE_IMAGE as base
 
 RUN apt-get update \
@@ -37,5 +35,6 @@ HEALTHCHECK --interval=30s --timeout=2s \
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
+ARG GIT_COMMIT_SHA
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
 LABEL org.opencontainers.image.revision=${GIT_COMMIT_SHA}

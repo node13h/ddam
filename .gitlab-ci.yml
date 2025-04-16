@@ -1,3 +1,6 @@
+default:
+  interruptible: true
+
 stages:
   - lint
   - test
@@ -240,6 +243,7 @@ scan-arm64:
     - build-image-arm64
 
 publish:
+  interruptible: false
   image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
   stage: publish
   script:
@@ -253,6 +257,7 @@ publish:
       allow_failure: true
 
 publish-image:
+  interruptible: false
   extends: .with-registry-login
   stage: publish
   image: "${QUAY_IO_REGISTRY}/${BUILDAH_CI_IMAGE}"
