@@ -23,10 +23,7 @@ class Mailer:
     def send(self, subject: str, body: str):
         smtp_cls: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
 
-        if self.ssl:
-            smtp_cls = smtplib.SMTP_SSL
-        else:
-            smtp_cls = smtplib.SMTP
+        smtp_cls = smtplib.SMTP_SSL if self.ssl else smtplib.SMTP
 
         message = MIMEText(body)
         message["From"] = self.email_from

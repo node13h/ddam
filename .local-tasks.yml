@@ -9,6 +9,6 @@ reformat:
     - ruff format
   artifacts:
     paths:
-      - 'ddam/**/*.py'
+      - 'src/**/*.py'
       - 'tests/**/*.py'
     expire_in: 1 day

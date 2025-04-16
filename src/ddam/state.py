@@ -1,7 +1,7 @@
 import datetime
 import sqlite3
+from collections.abc import Generator
 from ipaddress import IPv4Address, IPv6Address, ip_address
-from typing import Generator
 
 
 class DB:
@@ -33,7 +33,7 @@ counter INTEGER)"""
 VALUES (:ip, unixepoch(), 1, 0)
 ON CONFLICT(ip) DO UPDATE
 SET updated=unixepoch(), active=1, counter=counter+1
-RETURNING ip, updated, counter, min(unixepoch() + (pow(2, counter) * 60 * 60), unixepoch() + :max_hours * 60 * 60)"""
+RETURNING ip, updated, counter, min(unixepoch() + (pow(2, counter) * 60 * 60), unixepoch() + :max_hours * 60 * 60)"""  # noqa: E501
         with self._conn:
             c = self._conn.execute(sql, {"ip": str(ip), "max_hours": self.max_hours})
             ip, updated, counter, expiration = c.fetchone()
@@ -60,7 +60,7 @@ RETURNING ip, updated, counter, min(unixepoch() + (pow(2, counter) * 60 * 60), u
 
         sql = """SELECT ip, updated, counter FROM targets
 WHERE active=1
-AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""
+AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""  # noqa: E501
         with self._conn:
             for row in self._conn.execute(sql, {"max_hours": self.max_hours}):
                 ip, updated, counter = row
@@ -82,7 +82,7 @@ AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_
     def get_active(self) -> Generator[dict, None, None]:
         sql = """SELECT ip, updated, counter FROM targets
 WHERE active=1
-AND updated >= min(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""
+AND updated >= min(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""  # noqa: E501
         with self._conn:
             for row in self._conn.execute(sql, {"max_hours": self.max_hours}):
                 ip, updated, counter = row
