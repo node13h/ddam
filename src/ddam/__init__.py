@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import logging
 import os
 import pathlib
@@ -120,21 +121,19 @@ class Ddam:
         if self.excludes is None:
             return False
 
-        for exclude in self.excludes:
-            if ip.version == 4:
-                if type(exclude) is IPv4Network:
-                    if ip in exclude:
-                        return True
-                elif type(exclude) is IPv4Address:
-                    if ip == exclude:
-                        return True
-            elif ip.version == 6:
-                if type(exclude) is IPv6Network:
-                    if ip in exclude:
-                        return True
-                elif type(exclude) is IPv6Address:
-                    if ip == exclude:
-                        return True
+        if ip.version == 4:
+            for exclude in self.excludes:
+                if (type(exclude) is IPv4Network and ip in exclude) or (
+                    type(exclude) is IPv4Address and ip == exclude
+                ):
+                    return True
+
+        elif ip.version == 6:
+            for exclude in self.excludes:
+                if (type(exclude) is IPv6Network and ip in exclude) or (
+                    type(exclude) is IPv6Address and ip == exclude
+                ):
+                    return True
 
         return False
 
@@ -142,18 +141,15 @@ class Ddam:
         if self.ip_is_excluded(ip):
             return False
 
-        for network in self.networks:
-            if ip in network:
-                return True
-
-        return False
+        return any(ip in network for network in self.networks)
 
     def announce(self, ip: IPv4Address | IPv6Address) -> None:
         for neighbor_ip, neighbor_config in self.neighbors.items():
             if neighbor_ip.version == ip.version:
                 communities_str = " ".join(neighbor_config["communities"])
                 sys.stdout.write(
-                    f"neighbor {neighbor_ip} announce route {ip}/{ip.max_prefixlen} next-hop self community [{communities_str}]\n"
+                    f"neighbor {neighbor_ip} announce route {ip}/{ip.max_prefixlen} "
+                    f"next-hop self community [{communities_str}]\n"
                 )
         sys.stdout.flush()
 
@@ -162,7 +158,8 @@ class Ddam:
             if neighbor_ip.version == ip.version:
                 communities_str = " ".join(neighbor_config["communities"])
                 sys.stdout.write(
-                    f"neighbor {neighbor_ip} withdraw route {ip}/{ip.max_prefixlen} next-hop self community [{communities_str}]\n"
+                    f"neighbor {neighbor_ip} withdraw route {ip}/{ip.max_prefixlen} "
+                    f"next-hop self community [{communities_str}]\n"
                 )
         sys.stdout.flush()
 
@@ -239,9 +236,11 @@ class Ddam:
             range_minutes=self.interval_minutes,
         )
         for item in top10:
-            if item["bitrate_mbps"] > self.ddos_threshold_mbps:
-                if self.ip_is_valid(item["ip"]):
-                    self.blackhole(item["ip"], item["bitrate_mbps"])
+            if (
+                self.ip_is_valid(item["ip"])
+                and item["bitrate_mbps"] > self.ddos_threshold_mbps
+            ):
+                self.blackhole(item["ip"], item["bitrate_mbps"])
 
         active_records = list(self.db.get_active())
 
@@ -308,15 +307,9 @@ def main():
             excludes.add(neighbor_config["local-address"])
 
         for e in EXCLUDES:
-            try:
+            with contextlib.suppress(ValueError):
                 excludes.add(ip_address(e))
-            except ValueError:
-                pass
-
-            try:
                 excludes.add(ip_network(e))
-            except ValueError:
-                pass
 
         ddam = Ddam(
             db,

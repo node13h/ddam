@@ -26,6 +26,22 @@ ddam = 'ddam:main'
 get-as-cidr-blocks = 'ddam.as_helper:main'
 make-exabgp-conf = 'ddam.exabgp_conf:main'
 
+# https://docs.astral.sh/ruff/linter/#rule-selection
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
 
 [tool.coverage.run]
 source = ["src"]
