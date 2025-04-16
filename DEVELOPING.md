@@ -45,9 +45,8 @@ created earlier.
 
     cat <<EOF >.gitlab-ci-local-variables.yml
 ---
-PUBLISH_IMAGE: 'docker.io/alikov/ddam'
 CI_REGISTRY: 'localci-registry:5000'
-CI_REGISTRY_IMAGE: 'localci-registry:5000/ddam'
+CI_REGISTRY_IMAGE: 'localci-registry:5000/${CI_PROJECT_PATH}'
 TRIVY_INSECURE: 'true'
 CONTAINERS_REGISTRIES_CONF:
   type: file
