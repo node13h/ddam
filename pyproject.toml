@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ddam"
-version = "1.2.0"
+version = "1.2.1"
 description = ""
 authors = ["Sergej Alikov <sergej@alikov.com>"]
 readme = "README.md"

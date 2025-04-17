@@ -1,12 +1,18 @@
 ARG BASE_IMAGE
 FROM $BASE_IMAGE as base
 
+# https://reproducible-builds.org/docs/source-date-epoch/
+ARG SOURCE_DATE_EPOCH
+
 RUN apt-get update \
     && apt-get dist-upgrade -y \
     && apt-get install -y --no-install-recommends netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base as install
+
+# https://reproducible-builds.org/docs/source-date-epoch/
+ARG SOURCE_DATE_EPOCH
 
 ARG PACKAGE_TARBALL
 
@@ -16,6 +22,9 @@ RUN python3 -m venv /opt/ddam \
     && /opt/ddam/bin/pip3 install /"$PACKAGE_TARBALL"
 
 FROM base
+
+# https://reproducible-builds.org/docs/source-date-epoch/
+ARG SOURCE_DATE_EPOCH
 
 COPY --from=install /opt/ddam /opt/ddam
 

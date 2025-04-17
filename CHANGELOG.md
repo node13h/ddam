@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1] - 2025-04-17
+
+### Fixed
+
+- Add missing `SOURCE_DATE_EPOCH` image build arg.
+
 ## [1.2.0] - 2025-04-16
 
 ### Changed
