@@ -73,8 +73,7 @@ version:
         env-vars | tee version.env
   artifacts:
     reports:
-      dotenv:
-        - version.env
+      dotenv: version.env
 
 requirements:
   image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
