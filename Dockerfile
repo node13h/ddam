@@ -1,5 +1,5 @@
-ARG BASE_IMAGE
-FROM $BASE_IMAGE as base
+ARG PYTHON_IMAGE
+FROM $PYTHON_IMAGE as base
 
 # https://reproducible-builds.org/docs/source-date-epoch/
 ARG SOURCE_DATE_EPOCH

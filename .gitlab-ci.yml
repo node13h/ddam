@@ -20,7 +20,7 @@ variables:
   TRIVY_NO_PROGRESS: "true"
   # https://aquasecurity.github.io/trivy/v0.59/docs/configuration/filtering/#trivyignoreyaml
   TRIVY_IGNOREFILE: ./.trivyignore.yaml
-  PYTHON_BASE_IMAGE: python:3.13.3-slim-bookworm
+  PYTHON_BASE_IMAGE: python:3.13-slim-bookworm
 
 workflow:
   rules:
@@ -182,7 +182,7 @@ build:
               --format oci
               --timestamp "$SOURCE_DATE_EPOCH"
               --build-arg PACKAGE_TARBALL="${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz"
-              --build-arg BASE_IMAGE="${DOCKER_HUB_REGISTRY}/${PYTHON_BASE_IMAGE}"
+              --build-arg PYTHON_IMAGE="${DOCKER_HUB_REGISTRY}/${PYTHON_BASE_IMAGE}"
               --build-arg SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH"
               --build-arg GIT_COMMIT_SHA="$CI_COMMIT_SHA"
               --arch "$ARCH"
