@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2] - 2025-04-18
+
+### Changed
+
+- Relax base image version to MAJOR.MINOR.
+- Specify `dotenv` version artifact as string to improve compatibility with
+  `gitlab-ci-local`.
+
 ## [1.2.1] - 2025-04-17
 
 ### Fixed
