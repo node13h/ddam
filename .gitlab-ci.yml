@@ -28,7 +28,6 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "web"
     # https://docs.gitlab.com/ci/pipelines/downstream_pipelines/#dynamic-child-pipelines
     - if: $CI_PIPELINE_SOURCE == "parent_pipeline"
-    - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -249,6 +248,8 @@ publish:
     - build
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - when: manual
       allow_failure: true
 
