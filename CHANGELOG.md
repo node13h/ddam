@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0] - 2025-05-08
+
+### Added
+
+- Support for specifying neighbor port number.
+
 ## [1.2.3] - 2025-04-28
 
 ### Fixed

@@ -12,6 +12,9 @@ neighbor {{ neighbor_ip }} {
     local-address {{ neighbor_config.get("local-address") }};
     local-as {{ neighbor_config.get("local-as") }};
     peer-as {{ neighbor_config.get("peer-as") }};
+    {% if "connect" in neighbor_config -%}
+    connect {{ neighbor_config.get("connect") }};
+    {% endif -%}
 
     family {
       ipv{{ neighbor_ip.version }} unicast;
