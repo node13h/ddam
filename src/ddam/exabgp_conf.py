@@ -27,6 +27,9 @@ def load_neighbors(path: pathlib.Path) -> dict:
         if "description" in neighbor_config:
             neighbors[ip]["description"] = neighbor_config["description"]
 
+        if "connect" in neighbor_config:
+            neighbors[ip]["connect"] = int(neighbor_config["connect"])
+
     return neighbors
 
 
