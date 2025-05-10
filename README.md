@@ -1,5 +1,7 @@
 # DDAM
 
+![Full solution architecture](doc/architecture.png "Architecture")
+
 DDAM mitigates DDoS attacks by monitoring NetFlow data in an Elasticsearch
 cluster (configured separately). It calculates per-IP throughput and announces
 temporary blackhole routes via BGP when traffic exceeds a set threshold.
@@ -210,3 +212,11 @@ volumes:
 ## Developing
 
 See [DEVELOPING.md](DEVELOPING.md) for local development setup instructions.
+
+## Diagram icon attribution
+
+- [Dot icons created by Bharat Icons - Flaticon](https://www.flaticon.com/free-icons/dot),
+- [Network device icons created by SBTS2018 - Flaticon](https://www.flaticon.com/free-icons/network-device),
+- [Wind icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/wind),
+- [Cloud icons created by kosonicon - Flaticon](https://www.flaticon.com/free-icons/cloud),
+- [Smtp icons created by Three musketeers - Flaticon](https://www.flaticon.com/free-icons/smtp).

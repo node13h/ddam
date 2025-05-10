@@ -1,15 +1,30 @@
 ip route 192.0.2.1/32 Null0
+ipv6 route 2001:db8::1/128 Null0
 
 router bgp 64513
  bgp router-id 192.168.64.3
  bgp log-neighbor-changes
+ no bgp default ipv4-unicast
  neighbor 192.168.64.1 remote-as 64512
  neighbor 192.168.64.1 description exa
+ neighbor 192.168.64.1 ebgp-multihop 2
  neighbor 192.168.64.1 disable-connected-check
+ neighbor fd12:3456:789a:1::1 remote-as 64512
+ neighbor fd12:3456:789a:1::1 description exa6
+ neighbor fd12:3456:789a:1::1 passive
+ neighbor fd12:3456:789a:1::1 ebgp-multihop 2
+ neighbor fd12:3456:789a:1::1 disable-connected-check
  !
  address-family ipv4 unicast
+  neighbor 192.168.64.1 activate
   neighbor 192.168.64.1 route-map BLACKHOLE-INBOUND in
   neighbor 192.168.64.1 route-map NO-OUTBOUND out
+ exit-address-family
+ !
+ address-family ipv6 unicast
+  neighbor fd12:3456:789a:1::1 activate
+  neighbor fd12:3456:789a:1::1 route-map BLACKHOLE-INBOUND6 in
+  neighbor fd12:3456:789a:1::1 route-map NO-OUTBOUND out
  exit-address-family
 exit
 !
@@ -24,4 +39,9 @@ exit
 !
 route-map NO-OUTBOUND deny 10
  match ip address prefix-list ALL
+exit
+!
+route-map BLACKHOLE-INBOUND6 permit 10
+ match community BLACKHOLE
+ set ipv6 next-hop global 2001:db8::1
 exit
