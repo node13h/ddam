@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0] - Unreleased
+
+### Added
+
+- IPv6 configuration in the example FRR config.
+
 ## [1.3.0] - 2025-05-08
 
 ### Added
