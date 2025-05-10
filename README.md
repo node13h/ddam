@@ -166,6 +166,7 @@ volumes:
 {
   "<UPSTREAM-BGP-NEIGHBOR-IP>": {
     "description": "ddam-test-neighbor",
+    "connect": 179,
     "local-address": "10.17.0.6",
     "router-id": "<HOST-IP>",
     "local-as": <AS-NUMBER>,
