@@ -49,3 +49,8 @@ source = ["src"]
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+exclude = [
+    "^doc/diagram.py$",
+]

@@ -11,4 +11,18 @@ reformat:
     paths:
       - 'src/**/*.py'
       - 'tests/**/*.py'
+      - 'doc/**/*.py'
+    expire_in: 1 day
+
+build-diagrams:
+  stage: .pre
+  image: "${DOCKER_HUB_REGISTRY}/${PYTHON_CI_IMAGE}"
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends graphviz
+    - pip install diagrams
+    - cd doc && python diagram.py
+  artifacts:
+    paths:
+      - 'doc/*.png'
     expire_in: 1 day

@@ -81,6 +81,7 @@ default `localci` is different from the network name created earlier.
 ## Local tasks
 
 - `make reformat` automatically re-formats the Python code and sorts imports.
+- `make diagrams` rebuilds diagrams.
 
 See `.local-tasks.yml` for more information.
 

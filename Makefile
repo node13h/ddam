@@ -16,3 +16,6 @@ tag-pipeline: .gitlab-ci-local-variables.yml
 
 reformat:
 	./run-local-task.sh reformat
+
+diagrams:
+	./run-local-task.sh build-diagrams
