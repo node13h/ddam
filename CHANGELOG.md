@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1] - 2025-05-11
+
+### Added
+
+- Support for specifying API address to listen on.
+
 ## [1.4.0] - 2025-05-11
 
 ### Added
