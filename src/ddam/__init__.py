@@ -73,6 +73,7 @@ UNBLACKHOLE_EMAIL_TEMPLATE_FILE = (
     if "DDAM_UNBLACKHOLE_EMAIL_TEMPLATE_FILE" in os.environ
     else None
 )
+API_HOST = os.environ.get("DDAM_API_HOST", "127.0.0.1")
 API_PORT = int(os.environ.get("DDAM_API_PORT", "8080"))
 
 LOGGING_CONFIG = {
@@ -351,7 +352,9 @@ async def check_loop() -> None:
 
 
 async def main_loop() -> None:
-    config = uvicorn.Config(app, port=API_PORT, log_config=LOGGING_CONFIG)
+    config = uvicorn.Config(
+        app, host=API_HOST, port=API_PORT, log_config=LOGGING_CONFIG
+    )
     server = uvicorn.Server(config)
 
     await asyncio.gather(check_loop(), server.serve())
