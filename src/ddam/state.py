@@ -6,12 +6,11 @@ from ipaddress import IPv4Address, IPv6Address, ip_address
 
 class DB:
     def __init__(self, db_file: str, max_hours: int = 24):
-        self._conn = sqlite3.connect(db_file, autocommit=False)
+        self.db_file = db_file
         self.max_hours = max_hours
 
-    def __del__(self):
-        if hasattr(self, "_conn"):
-            self._conn.close()
+    def get_con(self):
+        return sqlite3.connect(self.db_file, autocommit=False)
 
     def migrate(self):
         sql = """CREATE TABLE IF NOT EXISTS targets (
@@ -19,8 +18,8 @@ ip TEXT PRIMARY KEY,
 updated INTEGER,
 active INTEGER,
 counter INTEGER)"""
-        with self._conn:
-            self._conn.execute(sql)
+        with self.get_con() as con:
+            con.execute(sql)
 
     def add(self, ip: IPv4Address | IPv6Address) -> dict:
         """
@@ -34,8 +33,8 @@ VALUES (:ip, unixepoch(), 1, 0)
 ON CONFLICT(ip) DO UPDATE
 SET updated=unixepoch(), active=1, counter=counter+1
 RETURNING ip, updated, counter, min(unixepoch() + (pow(2, counter) * 60 * 60), unixepoch() + :max_hours * 60 * 60)"""  # noqa: E501
-        with self._conn:
-            c = self._conn.execute(sql, {"ip": str(ip), "max_hours": self.max_hours})
+        with self.get_con() as con:
+            c = con.execute(sql, {"ip": str(ip), "max_hours": self.max_hours})
             ip, updated, counter, expiration = c.fetchone()
             return {
                 "ip": ip_address(ip),
@@ -61,8 +60,8 @@ RETURNING ip, updated, counter, min(unixepoch() + (pow(2, counter) * 60 * 60), u
         sql = """SELECT ip, updated, counter FROM targets
 WHERE active=1
 AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""  # noqa: E501
-        with self._conn:
-            for row in self._conn.execute(sql, {"max_hours": self.max_hours}):
+        with self.get_con() as con:
+            for row in con.execute(sql, {"max_hours": self.max_hours}):
                 ip, updated, counter = row
                 yield {
                     "ip": ip_address(ip),
@@ -73,8 +72,8 @@ AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_
                 }
 
     def deactivate(self, ip: IPv4Address | IPv6Address) -> None:
-        with self._conn:
-            self._conn.execute(
+        with self.get_con() as con:
+            con.execute(
                 "UPDATE targets SET active=0, updated=unixepoch() WHERE ip=:ip",
                 {"ip": str(ip)},
             )
@@ -83,8 +82,8 @@ AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_
         sql = """SELECT ip, updated, counter FROM targets
 WHERE active=1
 AND updated >= min(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""  # noqa: E501
-        with self._conn:
-            for row in self._conn.execute(sql, {"max_hours": self.max_hours}):
+        with self.get_con() as con:
+            for row in con.execute(sql, {"max_hours": self.max_hours}):
                 ip, updated, counter = row
                 yield {
                     "ip": ip_address(ip),
@@ -103,5 +102,5 @@ AND updated >= min(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max
 WHERE active=0
 AND (updated < unixepoch() - (:max_hours * 60 * 60))"""
 
-        with self._conn:
-            self._conn.execute(sql, {"max_hours": self.max_hours})
+        with self.get_con() as con:
+            con.execute(sql, {"max_hours": self.max_hours})
