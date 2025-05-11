@@ -78,6 +78,14 @@ AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_
                 {"ip": str(ip)},
             )
 
+    def ip_is_blackholed(self, ip: IPv4Address | IPv6Address) -> bool:
+        sql = "SELECT COUNT(ip) FROM targets WHERE ip=:ip AND active=1"
+        with self.get_con() as con:
+            c = con.execute(sql, {"ip": str(ip)})
+            count = c.fetchone()[0]
+
+        return count > 0
+
     def get_active(self) -> Generator[dict, None, None]:
         sql = """SELECT ip, updated, counter FROM targets
 WHERE active=1
