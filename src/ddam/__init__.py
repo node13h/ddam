@@ -1,10 +1,11 @@
 import argparse
+import asyncio
 import contextlib
 import logging
 import os
 import pathlib
 import sys
-import time
+from collections.abc import Generator
 from ipaddress import (
     IPv4Address,
     IPv4Network,
@@ -16,6 +17,9 @@ from ipaddress import (
 
 import jinja2
 import prometheus_client
+import pydantic
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
 
 from . import metrics
 from .as_helper import load_cidr_blocks
@@ -69,6 +73,74 @@ UNBLACKHOLE_EMAIL_TEMPLATE_FILE = (
     if "DDAM_UNBLACKHOLE_EMAIL_TEMPLATE_FILE" in os.environ
     else None
 )
+API_PORT = int(os.environ.get("DDAM_API_PORT", "8080"))
+
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": 'name="%(name)s" level=%(levelname)s message="%(message)s"',
+            "use_colors": False,
+        },
+        "access": {
+            "()": "uvicorn.logging.AccessFormatter",
+            "fmt": 'name="%(name)s" level=%(levelname)s client="%(client_addr)s" request_line="%(request_line)s" code=%(status_code)s',  # noqa: E501
+            "use_colors": False,
+        },
+    },
+    "handlers": {
+        "default": {
+            "formatter": "default",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+        },
+        "access": {
+            "formatter": "access",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+        },
+    },
+    "root": {
+        "handlers": ["default"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        __name__: {"handlers": ["default"], "level": "DEBUG", "propagate": False},
+        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.error": {"level": "INFO"},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+    },
+}
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    app.state.shutting_down = True
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+class IPModel(pydantic.BaseModel):
+    ip: IPv4Address | IPv6Address
+
+
+@app.get("/api/v1/blackhole")
+def get_blackholes(request: Request) -> list[IPModel]:
+    return [
+        IPModel(ip=item["ip"]) for item in request.app.state.ddam.active_blackholes()
+    ]
+
+
+@app.delete("/api/v1/blackhole/{ip}")
+def delete_blackhole(request: Request, ip: IPv4Address | IPv6Address) -> IPModel:
+    if request.app.state.ddam.unblackhole(ip):
+        return IPModel(ip=ip)
+    else:
+        raise HTTPException(status_code=404, detail=f"{ip} is not blackholed")
 
 
 class Ddam:
@@ -207,7 +279,12 @@ class Ddam:
             ),
         )
 
-    def unblackhole(self, ip: IPv4Address | IPv6Address) -> None:
+    def unblackhole(
+        self, ip: IPv4Address | IPv6Address
+    ) -> IPv4Address | IPv6Address | None:
+        if not self.db.ip_is_blackholed(ip):
+            return None
+
         logger.debug("Unblackholing %s", ip)
 
         self.withdraw(ip)
@@ -221,6 +298,11 @@ class Ddam:
         self.send_notifications(
             f"Unblackhole {ip}", self.unblackhole_email_template.render(ip=ip)
         )
+
+        return ip
+
+    def active_blackholes(self) -> Generator[dict, None, None]:
+        yield from self.db.get_active()
 
     def check(self) -> None:
         logger.debug("Checking")
@@ -254,8 +336,29 @@ class Ddam:
         metrics.MAX_RECURRING_ATTACKS.set(max_counter)
 
 
+async def check_loop() -> None:
+    counter = 0
+    while True:
+        if app.state.shutting_down:
+            return
+
+        if counter == 0:
+            app.state.ddam.check()
+            counter = INTERVAL_MINUTES * 60
+
+        await asyncio.sleep(1)
+        counter -= 1
+
+
+async def main_loop() -> None:
+    config = uvicorn.Config(app, port=API_PORT, log_config=LOGGING_CONFIG)
+    server = uvicorn.Server(config)
+
+    await asyncio.gather(check_loop(), server.serve())
+
+
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.config.dictConfig(LOGGING_CONFIG)
 
     parser = argparse.ArgumentParser()
 
@@ -326,6 +429,10 @@ def main():
 
         ddam.reannounce_active()
 
-        while True:
-            ddam.check()
-            time.sleep(INTERVAL_MINUTES * 60)
+        app.state.ddam = ddam
+        app.state.shutting_down = False
+
+        try:
+            asyncio.run(main_loop())
+        except KeyboardInterrupt:
+            logger.warning("Ctrl+C received, exiting.")
