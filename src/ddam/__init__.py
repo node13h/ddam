@@ -237,6 +237,8 @@ class Ddam:
         sys.stdout.flush()
 
     def reannounce_active(self) -> None:
+        logger.info("Reannouncing active blackholes")
+
         for record in self.db.get_active():
             if self.ip_is_valid(record["ip"]):
                 # Silently reannounce the active IP.
