@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2] - 2025-05-12
+
+### Fixed
+
+- HTTP status code quoting in logs.
+- DB connection is now closed after each query.
+
 ## [1.4.1] - 2025-05-11
 
 ### Added
