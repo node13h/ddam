@@ -1,6 +1,7 @@
 import datetime
 import sqlite3
 from collections.abc import Generator
+from contextlib import contextmanager
 from ipaddress import IPv4Address, IPv6Address, ip_address
 
 
@@ -9,8 +10,14 @@ class DB:
         self.db_file = db_file
         self.max_hours = max_hours
 
-    def get_con(self):
-        return sqlite3.connect(self.db_file, autocommit=False)
+    @contextmanager
+    def get_con(self) -> Generator[sqlite3.Connection, None, None]:
+        con = sqlite3.connect(self.db_file, autocommit=False)
+        try:
+            with con:
+                yield con
+        finally:
+            con.close()
 
     def migrate(self):
         sql = """CREATE TABLE IF NOT EXISTS targets (
