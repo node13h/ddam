@@ -87,7 +87,7 @@ LOGGING_CONFIG = {
         },
         "access": {
             "()": "uvicorn.logging.AccessFormatter",
-            "fmt": 'name="%(name)s" level=%(levelname)s client="%(client_addr)s" request_line="%(request_line)s" code=%(status_code)s',  # noqa: E501
+            "fmt": 'name="%(name)s" level=%(levelname)s client="%(client_addr)s" request_line="%(request_line)s" code="%(status_code)s"',  # noqa: E501
             "use_colors": False,
         },
     },
