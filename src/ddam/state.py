@@ -54,7 +54,7 @@ RETURNING ip, updated, counter, min(unixepoch() + (pow(2, counter) * 60 * 60), u
                 ),
             }
 
-    def get_expired(self) -> Generator[dict, None, None]:
+    def get_expired(self) -> list[dict]:
         """
         Return expired records.
         Record expiration is progressive depending on the counter,
@@ -64,19 +64,24 @@ RETURNING ip, updated, counter, min(unixepoch() + (pow(2, counter) * 60 * 60), u
         one day by default.
         """
 
+        result = []
         sql = """SELECT ip, updated, counter FROM targets
 WHERE active=1
 AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""  # noqa: E501
         with self.get_con() as con:
             for row in con.execute(sql, {"max_hours": self.max_hours}):
                 ip, updated, counter = row
-                yield {
-                    "ip": ip_address(ip),
-                    "updated": datetime.datetime.fromtimestamp(
-                        updated, datetime.timezone.utc
-                    ),
-                    "counter": counter,
-                }
+                result.append(
+                    {
+                        "ip": ip_address(ip),
+                        "updated": datetime.datetime.fromtimestamp(
+                            updated, datetime.timezone.utc
+                        ),
+                        "counter": counter,
+                    }
+                )
+
+        return result
 
     def deactivate(self, ip: IPv4Address | IPv6Address) -> None:
         with self.get_con() as con:
@@ -93,20 +98,25 @@ AND updated < max(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_
 
         return count > 0
 
-    def get_active(self) -> Generator[dict, None, None]:
+    def get_active(self) -> list[dict]:
+        result = []
         sql = """SELECT ip, updated, counter FROM targets
 WHERE active=1
 AND updated >= min(unixepoch() - (pow(2, counter) * 60 * 60), unixepoch() - :max_hours * 60 * 60)"""  # noqa: E501
         with self.get_con() as con:
             for row in con.execute(sql, {"max_hours": self.max_hours}):
                 ip, updated, counter = row
-                yield {
-                    "ip": ip_address(ip),
-                    "updated": datetime.datetime.fromtimestamp(
-                        updated, datetime.timezone.utc
-                    ),
-                    "counter": counter,
-                }
+                result.append(
+                    {
+                        "ip": ip_address(ip),
+                        "updated": datetime.datetime.fromtimestamp(
+                            updated, datetime.timezone.utc
+                        ),
+                        "counter": counter,
+                    }
+                )
+
+        return result
 
     def prune(self) -> None:
         """
